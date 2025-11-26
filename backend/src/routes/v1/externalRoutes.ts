@@ -7,13 +7,18 @@
  */
 
 import { Router } from 'express';
+import * as clientRegisterController from '@/api/v1/external/client/register/controller';
+import * as clientVerifyEmailController from '@/api/v1/external/client/verify-email/controller';
+import * as clientResendVerificationController from '@/api/v1/external/client/resend-verification/controller';
 
 const router = Router();
 
 /**
- * @remarks
- * External routes will be added here as features are implemented.
- * Examples: authentication, public data access, webhooks, etc.
+ * @rule {be-client-registration}
+ * Client registration routes
  */
+router.post('/client/register', clientRegisterController.postHandler);
+router.get('/client/verify-email', clientVerifyEmailController.getHandler);
+router.post('/client/resend-verification', clientResendVerificationController.postHandler);
 
 export default router;

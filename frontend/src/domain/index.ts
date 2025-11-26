@@ -1,2 +1,1 @@
-// Domain modules export
-export {};
+export * from './client/_module';

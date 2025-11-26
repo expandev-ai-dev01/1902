@@ -4,10 +4,21 @@ import { LoadingSpinner } from '@/core/components/loading-spinner';
 import { MainLayout } from '@/layouts/MainLayout';
 
 const HomePage = lazy(() =>
-  import('@/pages/Home').then((module) => ({ default: module.HomePage })),
+  import('@/pages/Home').then((module) => ({ default: module.HomePage }))
+);
+const RegisterPage = lazy(() =>
+  import('@/pages/Register').then((module) => ({ default: module.RegisterPage }))
+);
+const VerifyEmailPage = lazy(() =>
+  import('@/pages/VerifyEmail').then((module) => ({ default: module.VerifyEmailPage }))
+);
+const ResendVerificationPage = lazy(() =>
+  import('@/pages/ResendVerification').then((module) => ({
+    default: module.ResendVerificationPage,
+  }))
 );
 const NotFoundPage = lazy(() =>
-  import('@/pages/NotFound').then((module) => ({ default: module.NotFoundPage })),
+  import('@/pages/NotFound').then((module) => ({ default: module.NotFoundPage }))
 );
 
 const routes = createBrowserRouter([
@@ -16,7 +27,7 @@ const routes = createBrowserRouter([
     element: (
       <Suspense
         fallback={
-          <div className='flex h-screen w-screen items-center justify-center'>
+          <div className="flex h-screen w-screen items-center justify-center">
             <LoadingSpinner />
           </div>
         }
@@ -30,11 +41,23 @@ const routes = createBrowserRouter([
         element: <HomePage />,
       },
       {
+        path: 'register',
+        element: <RegisterPage />,
+      },
+      {
+        path: 'verify-email',
+        element: <VerifyEmailPage />,
+      },
+      {
+        path: 'resend-verification',
+        element: <ResendVerificationPage />,
+      },
+      {
         path: '*',
         element: (
           <Suspense
             fallback={
-              <div className='flex h-full w-full items-center justify-center'>
+              <div className="flex h-full w-full items-center justify-center">
                 <LoadingSpinner />
               </div>
             }
