@@ -6,10 +6,4 @@
  * @module constants
  */
 
-/**
- * @remarks
- * Constant modules will be exported here as needed.
- * Examples: HTTP status codes, error codes, business rules, etc.
- */
-
-export {};
+export * from './creditRequest';

@@ -17,6 +17,9 @@ const ResendVerificationPage = lazy(() =>
     default: module.ResendVerificationPage,
   }))
 );
+const CreditRequestPage = lazy(() =>
+  import('@/pages/CreditRequest').then((module) => ({ default: module.CreditRequestPage }))
+);
 const NotFoundPage = lazy(() =>
   import('@/pages/NotFound').then((module) => ({ default: module.NotFoundPage }))
 );
@@ -51,6 +54,10 @@ const routes = createBrowserRouter([
       {
         path: 'resend-verification',
         element: <ResendVerificationPage />,
+      },
+      {
+        path: 'credit-request',
+        element: <CreditRequestPage />,
       },
       {
         path: '*',

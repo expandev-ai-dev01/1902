@@ -7,13 +7,14 @@
  */
 
 import { Router } from 'express';
+import * as creditRequestController from '@/api/v1/internal/credit-request/controller';
 
 const router = Router();
 
 /**
- * @remarks
- * Internal routes will be added here as features are implemented.
- * Examples: resource management, user operations, protected data access, etc.
+ * @rule {be-credit-request-routes}
+ * Credit request routes
  */
+router.post('/credit-request', creditRequestController.postHandler);
 
 export default router;

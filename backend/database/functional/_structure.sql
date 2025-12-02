@@ -109,6 +109,32 @@ CREATE TABLE [functional].[verificationRequest] (
 GO
 
 /**
+ * @table creditRequest Credit request information
+ * @multitenancy false
+ * @softDelete false
+ * @alias creReq
+ */
+CREATE TABLE [functional].[creditRequest] (
+  [idCreditRequest] INTEGER IDENTITY(1, 1) NOT NULL,
+  [idClient] INTEGER NOT NULL,
+  [requestNumber] VARCHAR(50) NOT NULL,
+  [creditAmount] DECIMAL(15, 2) NOT NULL,
+  [purposeCategory] VARCHAR(50) NOT NULL,
+  [purposeSubcategory] VARCHAR(100) NOT NULL,
+  [paymentTerm] VARCHAR(50) NOT NULL,
+  [paymentMethod] VARCHAR(50) NOT NULL,
+  [monthlyIncome] DECIMAL(15, 2) NOT NULL,
+  [committedIncome] DECIMAL(15, 2) NOT NULL,
+  [professionalSituation] VARCHAR(50) NOT NULL,
+  [bankCode] VARCHAR(3) NOT NULL,
+  [branchNumber] VARCHAR(5) NOT NULL,
+  [accountNumber] VARCHAR(12) NOT NULL,
+  [requestDate] DATETIME2 NOT NULL,
+  [status] VARCHAR(50) NOT NULL
+);
+GO
+
+/**
  * @primaryKey pkClient
  * @keyType Object
  */
@@ -157,6 +183,14 @@ ADD CONSTRAINT [pkVerificationRequest] PRIMARY KEY CLUSTERED ([idRequest]);
 GO
 
 /**
+ * @primaryKey pkCreditRequest
+ * @keyType Object
+ */
+ALTER TABLE [functional].[creditRequest]
+ADD CONSTRAINT [pkCreditRequest] PRIMARY KEY CLUSTERED ([idCreditRequest]);
+GO
+
+/**
  * @foreignKey fkAddress_Client Relationship between address and client
  * @target functional.client
  */
@@ -171,6 +205,15 @@ GO
  */
 ALTER TABLE [functional].[emailVerification]
 ADD CONSTRAINT [fkEmailVerification_Client] FOREIGN KEY ([idClient])
+REFERENCES [functional].[client]([idClient]);
+GO
+
+/**
+ * @foreignKey fkCreditRequest_Client Relationship between credit request and client
+ * @target functional.client
+ */
+ALTER TABLE [functional].[creditRequest]
+ADD CONSTRAINT [fkCreditRequest_Client] FOREIGN KEY ([idClient])
 REFERENCES [functional].[client]([idClient]);
 GO
 
@@ -202,6 +245,72 @@ ADD CONSTRAINT [chkAddress_State] CHECK ([state] IN (
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
   'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN',
   'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
+));
+GO
+
+/**
+ * @check chkCreditRequest_CreditAmount Credit amount must be positive
+ */
+ALTER TABLE [functional].[creditRequest]
+ADD CONSTRAINT [chkCreditRequest_CreditAmount] CHECK ([creditAmount] > 0);
+GO
+
+/**
+ * @check chkCreditRequest_MonthlyIncome Monthly income must be positive
+ */
+ALTER TABLE [functional].[creditRequest]
+ADD CONSTRAINT [chkCreditRequest_MonthlyIncome] CHECK ([monthlyIncome] > 0);
+GO
+
+/**
+ * @check chkCreditRequest_CommittedIncome Committed income must be non-negative
+ */
+ALTER TABLE [functional].[creditRequest]
+ADD CONSTRAINT [chkCreditRequest_CommittedIncome] CHECK ([committedIncome] >= 0);
+GO
+
+/**
+ * @check chkCreditRequest_PurposeCategory Valid purpose categories
+ */
+ALTER TABLE [functional].[creditRequest]
+ADD CONSTRAINT [chkCreditRequest_PurposeCategory] CHECK ([purposeCategory] IN (
+  'CONSUMO', 'INVESTIMENTO', 'IMÓVEL', 'VEÍCULO'
+));
+GO
+
+/**
+ * @check chkCreditRequest_PaymentTerm Valid payment terms
+ */
+ALTER TABLE [functional].[creditRequest]
+ADD CONSTRAINT [chkCreditRequest_PaymentTerm] CHECK ([paymentTerm] IN (
+  'Até 6 meses', '6 a 12 meses', '13 a 24 meses', '25 a 48 meses', '49 a 60 meses'
+));
+GO
+
+/**
+ * @check chkCreditRequest_PaymentMethod Valid payment methods
+ */
+ALTER TABLE [functional].[creditRequest]
+ADD CONSTRAINT [chkCreditRequest_PaymentMethod] CHECK ([paymentMethod] IN (
+  'Boleto', 'Cartão de crédito', 'Débito automático em conta corrente'
+));
+GO
+
+/**
+ * @check chkCreditRequest_ProfessionalSituation Valid professional situations
+ */
+ALTER TABLE [functional].[creditRequest]
+ADD CONSTRAINT [chkCreditRequest_ProfessionalSituation] CHECK ([professionalSituation] IN (
+  'CLT', 'Autônomo', 'Empresário', 'Aposentado', 'Funcionário Público', 'Pensionista', 'Estudante', 'Desempregado'
+));
+GO
+
+/**
+ * @check chkCreditRequest_Status Valid request status
+ */
+ALTER TABLE [functional].[creditRequest]
+ADD CONSTRAINT [chkCreditRequest_Status] CHECK ([status] IN (
+  'Em Análise', 'Aprovado', 'Reprovado'
 ));
 GO
 
@@ -271,4 +380,29 @@ GO
  */
 CREATE NONCLUSTERED INDEX [ixVerificationRequest_Email]
 ON [functional].[verificationRequest]([email]);
+GO
+
+/**
+ * @index ixCreditRequest_Client Index for client credit requests lookup
+ * @type ForeignKey
+ */
+CREATE NONCLUSTERED INDEX [ixCreditRequest_Client]
+ON [functional].[creditRequest]([idClient]);
+GO
+
+/**
+ * @index ixCreditRequest_RequestNumber Unique index for request number
+ * @type Search
+ * @unique true
+ */
+CREATE UNIQUE NONCLUSTERED INDEX [ixCreditRequest_RequestNumber]
+ON [functional].[creditRequest]([requestNumber]);
+GO
+
+/**
+ * @index ixCreditRequest_Status Index for status filtering
+ * @type Search
+ */
+CREATE NONCLUSTERED INDEX [ixCreditRequest_Status]
+ON [functional].[creditRequest]([status]);
 GO
