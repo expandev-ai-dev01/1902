@@ -6,4 +6,8 @@ export type {
   CreditRequestFormInput,
   CreditRequestFormOutput,
   CreditRequestResponse,
+  RequestStatus,
+  CreditRequestListParams,
+  CreditRequestListResponse,
+  CreditRequestStats,
 } from './types';

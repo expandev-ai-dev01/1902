@@ -1,51 +1,38 @@
 /**
  * @summary
  * Credit request endpoint controller.
- * Handles credit request creation with validation.
+ * Handles credit request creation, listing, details, and actions.
  *
  * @api {post} /api/v1/internal/credit-request Create Credit Request
- * @apiName CreateCreditRequest
- * @apiGroup CreditRequest
- * @apiVersion 1.0.0
- *
- * @apiDescription Creates a new credit request for authenticated client
- *
- * @apiParam {Number} creditAmount Credit amount requested (positive decimal)
- * @apiParam {String} purposeCategory Purpose category (CONSUMO|INVESTIMENTO|IMÓVEL|VEÍCULO)
- * @apiParam {String} purposeSubcategory Purpose subcategory
- * @apiParam {String} paymentTerm Payment term
- * @apiParam {String} paymentMethod Payment method
- * @apiParam {Number} monthlyIncome Monthly income (positive decimal)
- * @apiParam {Number} committedIncome Committed income (non-negative decimal)
- * @apiParam {String} professionalSituation Professional situation
- * @apiParam {String} bankCode Bank code (3 digits)
- * @apiParam {String} branchNumber Branch number (max 5 digits)
- * @apiParam {String} accountNumber Account number (max 12 chars)
- *
- * @apiSuccess {Boolean} success Success flag (always true)
- * @apiSuccess {Number} data.idCreditRequest Credit request identifier
- * @apiSuccess {String} data.requestNumber Generated request number
- *
- * @apiError {String} error.code Error code
- * @apiError {String} error.message Error message
+ * @api {get} /api/v1/internal/credit-request List Credit Requests
+ * @api {get} /api/v1/internal/credit-request/stats Get Request Statistics
+ * @api {get} /api/v1/internal/credit-request/:id Get Request Details
+ * @api {post} /api/v1/internal/credit-request/:id/cancel Cancel Request
+ * @api {get} /api/v1/internal/credit-request/:id/receipt Download Receipt
+ * @api {get} /api/v1/internal/credit-request/export Export History
  */
 
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import {
   creditRequestCreate,
+  creditRequestList,
+  creditRequestGet,
+  creditRequestGetStats,
+  creditRequestCancel,
   PurposeCategory,
   PaymentTerm,
   PaymentMethod,
   ProfessionalSituation,
+  RequestStatus,
 } from '@/services/creditRequest';
 import { successResponse, errorResponse } from '@/utils/response';
 
 /**
  * @rule {be-zod-validation}
- * Request body validation schema
+ * Request body validation schema for creation
  */
-const bodySchema = z
+const createBodySchema = z
   .object({
     creditAmount: z
       .number()
@@ -96,49 +83,33 @@ const bodySchema = z
   });
 
 /**
+ * @rule {be-zod-validation}
+ * Query parameters validation schema for listing
+ */
+const listQuerySchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  pageSize: z.coerce.number().int().positive().max(100).optional().default(10),
+  status: z
+    .string()
+    .optional()
+    .transform((val) => (val ? val.split(',').map((s) => s.trim() as RequestStatus) : undefined)),
+  startDate: z.string().datetime().optional(),
+  endDate: z.string().datetime().optional(),
+  searchTerm: z.string().optional(),
+});
+
+/**
  * @summary
  * Handles credit request creation POST request
- *
- * @function postHandler
- * @module api/v1/internal/credit-request/controller
- *
- * @param {Request} req - Express request object
- * @param {Response} res - Express response object
- * @param {NextFunction} next - Express next function
- *
- * @returns {Promise<void>}
  */
 export async function postHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    /**
-     * @validation Request body validation
-     */
-    const validatedData = bodySchema.parse(req.body);
-
-    /**
-     * @rule {be-authentication}
-     * Get authenticated client ID from request
-     * TODO: Replace with actual authentication middleware
-     */
+    const validatedData = createBodySchema.parse(req.body);
     const idClient = (req as any).user?.idClient || 1;
 
-    /**
-     * @rule {fn-credit-request-creation}
-     * Execute credit request creation
-     */
     const result = await creditRequestCreate({
       idClient,
-      creditAmount: validatedData.creditAmount,
-      purposeCategory: validatedData.purposeCategory,
-      purposeSubcategory: validatedData.purposeSubcategory,
-      paymentTerm: validatedData.paymentTerm,
-      paymentMethod: validatedData.paymentMethod,
-      monthlyIncome: validatedData.monthlyIncome,
-      committedIncome: validatedData.committedIncome,
-      professionalSituation: validatedData.professionalSituation,
-      bankCode: validatedData.bankCode,
-      branchNumber: validatedData.branchNumber,
-      accountNumber: validatedData.accountNumber,
+      ...validatedData,
     });
 
     res.status(201).json(successResponse(result));
@@ -154,5 +125,165 @@ export async function postHandler(req: Request, res: Response, next: NextFunctio
     } else {
       next(error);
     }
+  }
+}
+
+/**
+ * @summary
+ * Handles credit request listing GET request
+ */
+export async function listHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const validatedQuery = listQuerySchema.parse(req.query);
+    const idClient = (req as any).user?.idClient || 1;
+
+    const result = await creditRequestList(idClient, validatedQuery);
+
+    res.json(
+      successResponse(result.data, {
+        page: result.page,
+        pageSize: result.pageSize,
+        total: result.total,
+      })
+    );
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json(errorResponse(error.errors[0].message, 'VALIDATION_ERROR'));
+    } else {
+      next(error);
+    }
+  }
+}
+
+/**
+ * @summary
+ * Handles credit request statistics GET request
+ */
+export async function statsHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const idClient = (req as any).user?.idClient || 1;
+    const result = await creditRequestGetStats(idClient);
+    res.json(successResponse(result));
+  } catch (error: any) {
+    next(error);
+  }
+}
+
+/**
+ * @summary
+ * Handles credit request details GET request
+ */
+export async function getHandler(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const idClient = (req as any).user?.idClient || 1;
+    const idCreditRequest = parseInt(req.params.id);
+
+    if (isNaN(idCreditRequest)) {
+      res.status(400).json(errorResponse('invalidRequestId'));
+      return;
+    }
+
+    const result = await creditRequestGet(idClient, idCreditRequest);
+
+    if (!result) {
+      res.status(404).json(errorResponse('requestNotFound', 'NOT_FOUND'));
+      return;
+    }
+
+    res.json(successResponse(result));
+  } catch (error: any) {
+    next(error);
+  }
+}
+
+/**
+ * @summary
+ * Handles credit request cancellation POST request
+ */
+export async function cancelHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const idClient = (req as any).user?.idClient || 1;
+    const idCreditRequest = parseInt(req.params.id);
+
+    if (isNaN(idCreditRequest)) {
+      res.status(400).json(errorResponse('invalidRequestId'));
+      return;
+    }
+
+    await creditRequestCancel(idClient, idCreditRequest);
+
+    res.json(successResponse({ message: 'requestCancelled' }));
+  } catch (error: any) {
+    if (['requestNotFound', 'requestCannotBeCancelled'].includes(error.message)) {
+      res.status(400).json(errorResponse(error.message));
+    } else {
+      next(error);
+    }
+  }
+}
+
+/**
+ * @summary
+ * Handles receipt download GET request (Mock)
+ */
+export async function receiptHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const idClient = (req as any).user?.idClient || 1;
+    const idCreditRequest = parseInt(req.params.id);
+
+    const request = await creditRequestGet(idClient, idCreditRequest);
+
+    if (!request) {
+      res.status(404).json(errorResponse('requestNotFound', 'NOT_FOUND'));
+      return;
+    }
+
+    if (![RequestStatus.Aprovado, RequestStatus.Efetivada].includes(request.status)) {
+      res.status(400).json(errorResponse('receiptNotAvailable'));
+      return;
+    }
+
+    // Mock response - in production this would stream a PDF file
+    res.json(
+      successResponse({
+        downloadUrl: `https://api.creditudo.com/downloads/receipts/${request.requestNumber}.pdf`,
+        generatedAt: new Date().toISOString(),
+      })
+    );
+  } catch (error: any) {
+    next(error);
+  }
+}
+
+/**
+ * @summary
+ * Handles history export GET request (Mock)
+ */
+export async function exportHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const validatedQuery = listQuerySchema.parse(req.query);
+
+    // Mock response - in production this would generate and stream a PDF/CSV
+    res.json(
+      successResponse({
+        downloadUrl: `https://api.creditudo.com/downloads/exports/history_${Date.now()}.pdf`,
+        format: 'pdf',
+        generatedAt: new Date().toISOString(),
+      })
+    );
+  } catch (error: any) {
+    next(error);
   }
 }

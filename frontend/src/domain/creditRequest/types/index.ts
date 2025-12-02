@@ -1,2 +1,9 @@
-export type { CreditRequest, CreditRequestResponse } from './creditRequest';
+export type {
+  CreditRequest,
+  CreditRequestResponse,
+  RequestStatus,
+  CreditRequestListParams,
+  CreditRequestListResponse,
+  CreditRequestStats,
+} from './creditRequest';
 export type { CreditRequestFormInput, CreditRequestFormOutput } from './forms';

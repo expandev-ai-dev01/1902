@@ -59,9 +59,13 @@ export enum ProfessionalSituation {
  * @description Credit request status values
  */
 export enum RequestStatus {
+  Rascunho = 'Rascunho',
+  AguardandoDocumentacao = 'Aguardando Documentação',
   EmAnalise = 'Em Análise',
   Aprovado = 'Aprovado',
   Reprovado = 'Reprovado',
+  Cancelado = 'Cancelado',
+  Efetivada = 'Efetivada',
 }
 
 /**
@@ -85,6 +89,18 @@ export interface CreditRequestEntity {
   accountNumber: string;
   requestDate: string;
   status: RequestStatus;
+  rejectionReason?: string;
+  approvedConditions?: {
+    approvedAmount: number;
+    interestRate: number;
+    finalTerm: number;
+    installmentValue: number;
+  };
+  documents?: Array<{
+    id: number;
+    name: string;
+    uploadDate: string;
+  }>;
 }
 
 /**
@@ -113,4 +129,37 @@ export interface CreditRequestCreateRequest {
 export interface CreditRequestCreateResponse {
   idCreditRequest: number;
   requestNumber: string;
+}
+
+/**
+ * @interface CreditRequestListFilters
+ * @description Filters for listing credit requests
+ */
+export interface CreditRequestListFilters {
+  status?: RequestStatus[];
+  startDate?: string;
+  endDate?: string;
+  searchTerm?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * @interface CreditRequestListResponse
+ * @description Response for paginated list of credit requests
+ */
+export interface CreditRequestListResponse {
+  data: CreditRequestEntity[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/**
+ * @interface CreditRequestStats
+ * @description Statistics for credit requests
+ */
+export interface CreditRequestStats {
+  total: number;
+  byStatus: Record<RequestStatus, number>;
 }

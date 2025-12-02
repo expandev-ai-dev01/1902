@@ -20,6 +20,12 @@ const ResendVerificationPage = lazy(() =>
 const CreditRequestPage = lazy(() =>
   import('@/pages/CreditRequest').then((module) => ({ default: module.CreditRequestPage }))
 );
+const DashboardPage = lazy(() =>
+  import('@/pages/Dashboard').then((module) => ({ default: module.DashboardPage }))
+);
+const ProposalDetailsPage = lazy(() =>
+  import('@/pages/ProposalDetails').then((module) => ({ default: module.ProposalDetailsPage }))
+);
 const NotFoundPage = lazy(() =>
   import('@/pages/NotFound').then((module) => ({ default: module.NotFoundPage }))
 );
@@ -58,6 +64,14 @@ const routes = createBrowserRouter([
       {
         path: 'credit-request',
         element: <CreditRequestPage />,
+      },
+      {
+        path: 'dashboard',
+        element: <DashboardPage />,
+      },
+      {
+        path: 'proposals/:id',
+        element: <ProposalDetailsPage />,
       },
       {
         path: '*',
