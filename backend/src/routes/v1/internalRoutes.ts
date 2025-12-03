@@ -9,6 +9,7 @@
 import { Router } from 'express';
 import * as creditRequestController from '@/api/v1/internal/credit-request/controller';
 import * as analysisQueueController from '@/api/v1/internal/analysis-queue/controller';
+import * as documentController from '@/api/v1/internal/credit-request/documents/controller';
 
 const router = Router();
 
@@ -28,6 +29,12 @@ router.get('/credit-request/export', creditRequestController.exportHandler);
 router.get('/credit-request/:id', creditRequestController.getHandler);
 router.post('/credit-request/:id/cancel', creditRequestController.cancelHandler);
 router.get('/credit-request/:id/receipt', creditRequestController.receiptHandler);
+
+// Document Management Routes
+router.post('/credit-request/:id/documents', documentController.uploadHandler);
+router.get('/credit-request/:id/documents', documentController.listHandler);
+router.delete('/credit-request/:id/documents/:idDocument', documentController.deleteHandler);
+router.post('/credit-request/:id/documents/finalize', documentController.finalizeHandler);
 
 // Evaluation Operations (Analyst)
 router.get(

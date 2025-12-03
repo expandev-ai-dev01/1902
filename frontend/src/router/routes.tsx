@@ -26,6 +26,9 @@ const DashboardPage = lazy(() =>
 const ProposalDetailsPage = lazy(() =>
   import('@/pages/ProposalDetails').then((module) => ({ default: module.ProposalDetailsPage }))
 );
+const DocumentUploadPage = lazy(() =>
+  import('@/pages/DocumentUpload').then((module) => ({ default: module.DocumentUploadPage }))
+);
 const AnalysisQueuePage = lazy(() =>
   import('@/pages/AnalysisQueue').then((module) => ({ default: module.AnalysisQueuePage }))
 );
@@ -80,6 +83,10 @@ const routes = createBrowserRouter([
       {
         path: 'proposals/:id',
         element: <ProposalDetailsPage />,
+      },
+      {
+        path: 'documents/:id',
+        element: <DocumentUploadPage />,
       },
       {
         path: 'analysis/queue',

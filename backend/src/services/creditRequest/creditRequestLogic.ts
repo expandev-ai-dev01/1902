@@ -176,7 +176,7 @@ export async function creditRequestCreate(
     branchNumber: params.branchNumber,
     accountNumber: params.accountNumber,
     requestDate: new Date().toISOString(),
-    status: RequestStatus.EmAnalise,
+    status: RequestStatus.AguardandoDocumentacao,
     documents: [],
     lockStatus: false,
     lockedBy: undefined,
