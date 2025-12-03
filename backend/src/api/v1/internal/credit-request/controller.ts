@@ -10,6 +10,10 @@
  * @api {post} /api/v1/internal/credit-request/:id/cancel Cancel Request
  * @api {get} /api/v1/internal/credit-request/:id/receipt Download Receipt
  * @api {get} /api/v1/internal/credit-request/export Export History
+ * @api {get} /api/v1/internal/credit-request/:id/evaluation-detail Get Evaluation Details
+ * @api {post} /api/v1/internal/credit-request/:id/approve Approve Request
+ * @api {post} /api/v1/internal/credit-request/:id/reject Reject Request
+ * @api {post} /api/v1/internal/credit-request/:id/return Return Request
  */
 
 import { Request, Response, NextFunction } from 'express';
@@ -20,6 +24,10 @@ import {
   creditRequestGet,
   creditRequestGetStats,
   creditRequestCancel,
+  creditRequestGetDetail,
+  creditRequestApprove,
+  creditRequestReject,
+  creditRequestReturn,
   PurposeCategory,
   PaymentTerm,
   PaymentMethod,
@@ -96,6 +104,25 @@ const listQuerySchema = z.object({
   startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   searchTerm: z.string().optional(),
+});
+
+/**
+ * @rule {be-zod-validation}
+ * Validation schemas for evaluation actions
+ */
+const approveBodySchema = z.object({
+  approvedAmount: z.number().positive(),
+  interestRate: z.number().positive(),
+  finalTerm: z.number().int().positive(),
+});
+
+const rejectBodySchema = z.object({
+  rejectionReason: z.string().min(20).max(1000),
+});
+
+const returnBodySchema = z.object({
+  documentsToCorrect: z.array(z.number().int().positive()).min(1),
+  correctionInstructions: z.string().min(20).max(1000),
 });
 
 /**
@@ -285,5 +312,161 @@ export async function exportHandler(
     );
   } catch (error: any) {
     next(error);
+  }
+}
+
+/**
+ * @summary
+ * Handles evaluation details GET request for analysts
+ */
+export async function evaluationDetailHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const analystId = (req as any).user?.idClient || 0;
+    const idCreditRequest = parseInt(req.params.id);
+
+    if (isNaN(idCreditRequest)) {
+      res.status(400).json(errorResponse('invalidRequestId'));
+      return;
+    }
+
+    const result = await creditRequestGetDetail(idCreditRequest, analystId);
+
+    res.json(successResponse(result));
+  } catch (error: any) {
+    if (error.message === 'requestNotFound') {
+      res.status(404).json(errorResponse(error.message, 'NOT_FOUND'));
+    } else {
+      next(error);
+    }
+  }
+}
+
+/**
+ * @summary
+ * Handles approve request POST request
+ */
+export async function approveHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const analystId = (req as any).user?.idClient || 0;
+    const idCreditRequest = parseInt(req.params.id);
+    const validatedData = approveBodySchema.parse(req.body);
+
+    if (isNaN(idCreditRequest)) {
+      res.status(400).json(errorResponse('invalidRequestId'));
+      return;
+    }
+
+    await creditRequestApprove({
+      idCreditRequest,
+      analystId,
+      ...validatedData,
+    });
+
+    res.json(successResponse({ message: 'requestApproved' }));
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json(errorResponse(error.errors[0].message, 'VALIDATION_ERROR'));
+    } else if (
+      [
+        'requestNotFound',
+        'proposalNotLockedByAnalyst',
+        'invalidStatusForApproval',
+        'approvedAmountExceedsRequested',
+      ].includes(error.message)
+    ) {
+      res.status(400).json(errorResponse(error.message));
+    } else {
+      next(error);
+    }
+  }
+}
+
+/**
+ * @summary
+ * Handles reject request POST request
+ */
+export async function rejectHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const analystId = (req as any).user?.idClient || 0;
+    const idCreditRequest = parseInt(req.params.id);
+    const validatedData = rejectBodySchema.parse(req.body);
+
+    if (isNaN(idCreditRequest)) {
+      res.status(400).json(errorResponse('invalidRequestId'));
+      return;
+    }
+
+    await creditRequestReject({
+      idCreditRequest,
+      analystId,
+      ...validatedData,
+    });
+
+    res.json(successResponse({ message: 'requestRejected' }));
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json(errorResponse(error.errors[0].message, 'VALIDATION_ERROR'));
+    } else if (
+      ['requestNotFound', 'proposalNotLockedByAnalyst', 'invalidStatusForRejection'].includes(
+        error.message
+      )
+    ) {
+      res.status(400).json(errorResponse(error.message));
+    } else {
+      next(error);
+    }
+  }
+}
+
+/**
+ * @summary
+ * Handles return request POST request
+ */
+export async function returnHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const analystId = (req as any).user?.idClient || 0;
+    const idCreditRequest = parseInt(req.params.id);
+    const validatedData = returnBodySchema.parse(req.body);
+
+    if (isNaN(idCreditRequest)) {
+      res.status(400).json(errorResponse('invalidRequestId'));
+      return;
+    }
+
+    await creditRequestReturn({
+      idCreditRequest,
+      analystId,
+      ...validatedData,
+    });
+
+    res.json(successResponse({ message: 'requestReturned' }));
+  } catch (error: any) {
+    if (error instanceof z.ZodError) {
+      res.status(400).json(errorResponse(error.errors[0].message, 'VALIDATION_ERROR'));
+    } else if (
+      ['requestNotFound', 'proposalNotLockedByAnalyst', 'invalidStatusForReturn'].includes(
+        error.message
+      )
+    ) {
+      res.status(400).json(errorResponse(error.message));
+    } else {
+      next(error);
+    }
   }
 }

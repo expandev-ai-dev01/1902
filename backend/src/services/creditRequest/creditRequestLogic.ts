@@ -22,6 +22,10 @@ import {
   AnalysisQueueFilters,
   AnalysisQueueResponse,
   AnalysisQueueItem,
+  CreditRequestApproveParams,
+  CreditRequestRejectParams,
+  CreditRequestReturnParams,
+  CreditRequestDetailResponse,
 } from './creditRequestTypes';
 
 /**
@@ -101,6 +105,16 @@ function calculateSLA(waitTimeMinutes: number): string {
 function calculatePriority(waitTimeMinutes: number, amount: number): number {
   if (waitTimeMinutes < 30) return amount;
   return 1000000;
+}
+
+/**
+ * @summary
+ * Calculate installment value using PMT formula
+ */
+function calculateInstallment(amount: number, rate: number, months: number): number {
+  if (rate === 0) return amount / months;
+  const i = rate / 100;
+  return (amount * i * Math.pow(1 + i, months)) / (Math.pow(1 + i, months) - 1);
 }
 
 /**
@@ -447,4 +461,170 @@ export async function lockCreditRequest(idCreditRequest: number, analystId: numb
   request.lockStatus = true;
   request.lockedBy = analystId;
   request.lockTimestamp = new Date().toISOString();
+}
+
+/**
+ * @summary
+ * Retrieves detailed credit request information for analysis
+ *
+ * @function creditRequestGetDetail
+ * @module services/creditRequest/creditRequestLogic
+ *
+ * @param {number} idCreditRequest - Request identifier
+ * @param {number} analystId - Analyst identifier
+ *
+ * @returns {Promise<CreditRequestDetailResponse>}
+ * @throws {Error} If request not found
+ */
+export async function creditRequestGetDetail(
+  idCreditRequest: number,
+  analystId: number
+): Promise<CreditRequestDetailResponse> {
+  const request = creditRequests.find((req) => req.idCreditRequest === idCreditRequest);
+
+  if (!request) {
+    throw new Error('requestNotFound');
+  }
+
+  // In a real scenario, we might enforce that the analyst has locked the request
+  // but for viewing details, we might allow it if it's not locked by someone else
+  // or if it's just for viewing.
+
+  const client = getClientById(request.idClient);
+  const history = creditRequests
+    .filter((req) => req.idClient === request.idClient && req.idCreditRequest !== idCreditRequest)
+    .sort((a, b) => new Date(b.requestDate).getTime() - new Date(a.requestDate).getTime());
+
+  return {
+    ...request,
+    clientData: client,
+    history,
+  };
+}
+
+/**
+ * @summary
+ * Approves a credit request
+ *
+ * @function creditRequestApprove
+ * @module services/creditRequest/creditRequestLogic
+ *
+ * @param {CreditRequestApproveParams} params - Approval parameters
+ *
+ * @returns {Promise<void>}
+ * @throws {Error} If request not found, not locked by analyst, or invalid status
+ */
+export async function creditRequestApprove(params: CreditRequestApproveParams): Promise<void> {
+  const request = creditRequests.find((req) => req.idCreditRequest === params.idCreditRequest);
+
+  if (!request) {
+    throw new Error('requestNotFound');
+  }
+
+  if (request.lockedBy !== params.analystId) {
+    throw new Error('proposalNotLockedByAnalyst');
+  }
+
+  if (request.status !== RequestStatus.EmAnalise) {
+    throw new Error('invalidStatusForApproval');
+  }
+
+  if (params.approvedAmount > request.creditAmount) {
+    throw new Error('approvedAmountExceedsRequested');
+  }
+
+  const installmentValue = calculateInstallment(
+    params.approvedAmount,
+    params.interestRate,
+    params.finalTerm
+  );
+
+  request.status = RequestStatus.Aprovado;
+  request.approvedConditions = {
+    approvedAmount: params.approvedAmount,
+    interestRate: params.interestRate,
+    finalTerm: params.finalTerm,
+    installmentValue,
+  };
+  request.analysisCompletionDate = new Date().toISOString();
+
+  // Unlock
+  request.lockStatus = false;
+  request.lockedBy = undefined;
+  request.lockTimestamp = undefined;
+}
+
+/**
+ * @summary
+ * Rejects a credit request
+ *
+ * @function creditRequestReject
+ * @module services/creditRequest/creditRequestLogic
+ *
+ * @param {CreditRequestRejectParams} params - Rejection parameters
+ *
+ * @returns {Promise<void>}
+ * @throws {Error} If request not found, not locked by analyst, or invalid status
+ */
+export async function creditRequestReject(params: CreditRequestRejectParams): Promise<void> {
+  const request = creditRequests.find((req) => req.idCreditRequest === params.idCreditRequest);
+
+  if (!request) {
+    throw new Error('requestNotFound');
+  }
+
+  if (request.lockedBy !== params.analystId) {
+    throw new Error('proposalNotLockedByAnalyst');
+  }
+
+  if (request.status !== RequestStatus.EmAnalise) {
+    throw new Error('invalidStatusForRejection');
+  }
+
+  request.status = RequestStatus.Reprovado;
+  request.rejectionReason = params.rejectionReason;
+  request.analysisCompletionDate = new Date().toISOString();
+
+  // Unlock
+  request.lockStatus = false;
+  request.lockedBy = undefined;
+  request.lockTimestamp = undefined;
+}
+
+/**
+ * @summary
+ * Returns a credit request for correction
+ *
+ * @function creditRequestReturn
+ * @module services/creditRequest/creditRequestLogic
+ *
+ * @param {CreditRequestReturnParams} params - Return parameters
+ *
+ * @returns {Promise<void>}
+ * @throws {Error} If request not found, not locked by analyst, or invalid status
+ */
+export async function creditRequestReturn(params: CreditRequestReturnParams): Promise<void> {
+  const request = creditRequests.find((req) => req.idCreditRequest === params.idCreditRequest);
+
+  if (!request) {
+    throw new Error('requestNotFound');
+  }
+
+  if (request.lockedBy !== params.analystId) {
+    throw new Error('proposalNotLockedByAnalyst');
+  }
+
+  if (request.status !== RequestStatus.EmAnalise) {
+    throw new Error('invalidStatusForReturn');
+  }
+
+  request.status = RequestStatus.AguardandoDocumentacao;
+  request.documentsToCorrect = params.documentsToCorrect;
+  request.correctionInstructions = params.correctionInstructions;
+  request.analysisCompletionDate = new Date().toISOString();
+
+  // Unlock
+  request.lockStatus = false;
+  request.lockedBy = undefined;
+  request.lockTimestamp = undefined;
 }

@@ -6,6 +6,10 @@ import type {
   CreditRequestListResponse,
   CreditRequestStats,
   CreditRequest,
+  EvaluationDetail,
+  ApproveProposalOutput,
+  RejectProposalOutput,
+  ReturnProposalOutput,
 } from '../types';
 
 export const creditRequestService = {
@@ -51,5 +55,22 @@ export const creditRequestService = {
       },
     });
     return response.data.data;
+  },
+
+  async getEvaluationDetail(id: number): Promise<EvaluationDetail> {
+    const response = await authenticatedClient.get(`/credit-request/${id}/evaluation-detail`);
+    return response.data.data;
+  },
+
+  async approve(id: number, data: ApproveProposalOutput): Promise<void> {
+    await authenticatedClient.post(`/credit-request/${id}/approve`, data);
+  },
+
+  async reject(id: number, data: RejectProposalOutput): Promise<void> {
+    await authenticatedClient.post(`/credit-request/${id}/reject`, data);
+  },
+
+  async return(id: number, data: ReturnProposalOutput): Promise<void> {
+    await authenticatedClient.post(`/credit-request/${id}/return`, data);
   },
 };

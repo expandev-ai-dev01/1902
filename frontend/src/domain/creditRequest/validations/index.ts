@@ -6,3 +6,4 @@ export {
   PAYMENT_METHODS,
   PROFESSIONAL_SITUATIONS,
 } from './creditRequest';
+export { approveProposalSchema, rejectProposalSchema, returnProposalSchema } from './evaluation';

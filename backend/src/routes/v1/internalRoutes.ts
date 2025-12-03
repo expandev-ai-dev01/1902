@@ -29,6 +29,15 @@ router.get('/credit-request/:id', creditRequestController.getHandler);
 router.post('/credit-request/:id/cancel', creditRequestController.cancelHandler);
 router.get('/credit-request/:id/receipt', creditRequestController.receiptHandler);
 
+// Evaluation Operations (Analyst)
+router.get(
+  '/credit-request/:id/evaluation-detail',
+  creditRequestController.evaluationDetailHandler
+);
+router.post('/credit-request/:id/approve', creditRequestController.approveHandler);
+router.post('/credit-request/:id/reject', creditRequestController.rejectHandler);
+router.post('/credit-request/:id/return', creditRequestController.returnHandler);
+
 /**
  * @rule {be-analysis-queue-routes}
  * Analysis Queue routes

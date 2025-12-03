@@ -101,9 +101,12 @@ export interface CreditRequestEntity {
     name: string;
     uploadDate: string;
   }>;
+  correctionInstructions?: string;
+  documentsToCorrect?: number[];
   lockStatus?: boolean;
   lockedBy?: number;
   lockTimestamp?: string;
+  analysisCompletionDate?: string;
 }
 
 /**
@@ -203,4 +206,46 @@ export interface AnalysisQueueResponse {
   filteredTotal: number;
   page: number;
   pageSize: number;
+}
+
+/**
+ * @interface CreditRequestApproveParams
+ * @description Parameters for approving a credit request
+ */
+export interface CreditRequestApproveParams {
+  idCreditRequest: number;
+  analystId: number;
+  approvedAmount: number;
+  interestRate: number;
+  finalTerm: number;
+}
+
+/**
+ * @interface CreditRequestRejectParams
+ * @description Parameters for rejecting a credit request
+ */
+export interface CreditRequestRejectParams {
+  idCreditRequest: number;
+  analystId: number;
+  rejectionReason: string;
+}
+
+/**
+ * @interface CreditRequestReturnParams
+ * @description Parameters for returning a credit request for correction
+ */
+export interface CreditRequestReturnParams {
+  idCreditRequest: number;
+  analystId: number;
+  documentsToCorrect: number[];
+  correctionInstructions: string;
+}
+
+/**
+ * @interface CreditRequestDetailResponse
+ * @description Detailed response for analysis view
+ */
+export interface CreditRequestDetailResponse extends CreditRequestEntity {
+  clientData: any;
+  history: CreditRequestEntity[];
 }
