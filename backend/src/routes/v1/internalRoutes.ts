@@ -8,6 +8,7 @@
 
 import { Router } from 'express';
 import * as creditRequestController from '@/api/v1/internal/credit-request/controller';
+import * as analysisQueueController from '@/api/v1/internal/analysis-queue/controller';
 
 const router = Router();
 
@@ -27,5 +28,12 @@ router.get('/credit-request/export', creditRequestController.exportHandler);
 router.get('/credit-request/:id', creditRequestController.getHandler);
 router.post('/credit-request/:id/cancel', creditRequestController.cancelHandler);
 router.get('/credit-request/:id/receipt', creditRequestController.receiptHandler);
+
+/**
+ * @rule {be-analysis-queue-routes}
+ * Analysis Queue routes
+ */
+router.get('/analysis-queue', analysisQueueController.listHandler);
+router.post('/analysis-queue/:id/lock', analysisQueueController.lockHandler);
 
 export default router;

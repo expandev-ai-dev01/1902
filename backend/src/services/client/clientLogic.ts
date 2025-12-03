@@ -282,3 +282,17 @@ export async function clientResendVerification(
     verificationToken,
   };
 }
+
+/**
+ * @summary
+ * Retrieves a client by ID
+ *
+ * @function getClientById
+ * @module services/client/clientLogic
+ *
+ * @param {number} id - Client identifier
+ * @returns {any | undefined} Client object or undefined if not found
+ */
+export function getClientById(id: number): any {
+  return clients.find((c) => c.idClient === id);
+}

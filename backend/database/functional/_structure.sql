@@ -130,7 +130,10 @@ CREATE TABLE [functional].[creditRequest] (
   [branchNumber] VARCHAR(5) NOT NULL,
   [accountNumber] VARCHAR(12) NOT NULL,
   [requestDate] DATETIME2 NOT NULL,
-  [status] VARCHAR(50) NOT NULL
+  [status] VARCHAR(50) NOT NULL,
+  [lockStatus] BIT DEFAULT 0 NOT NULL,
+  [lockedBy] INTEGER NULL,
+  [lockTimestamp] DATETIME2 NULL
 );
 GO
 
@@ -214,6 +217,15 @@ GO
  */
 ALTER TABLE [functional].[creditRequest]
 ADD CONSTRAINT [fkCreditRequest_Client] FOREIGN KEY ([idClient])
+REFERENCES [functional].[client]([idClient]);
+GO
+
+/**
+ * @foreignKey fkCreditRequest_LockedBy Relationship between credit request and analyst
+ * @target functional.client
+ */
+ALTER TABLE [functional].[creditRequest]
+ADD CONSTRAINT [fkCreditRequest_LockedBy] FOREIGN KEY ([lockedBy])
 REFERENCES [functional].[client]([idClient]);
 GO
 
@@ -310,7 +322,7 @@ GO
  */
 ALTER TABLE [functional].[creditRequest]
 ADD CONSTRAINT [chkCreditRequest_Status] CHECK ([status] IN (
-  'Em Análise', 'Aprovado', 'Reprovado'
+  'Em Análise', 'Aprovado', 'Reprovado', 'Cancelado', 'Rascunho', 'Aguardando Documentação', 'Efetivada'
 ));
 GO
 
@@ -405,4 +417,13 @@ GO
  */
 CREATE NONCLUSTERED INDEX [ixCreditRequest_Status]
 ON [functional].[creditRequest]([status]);
+GO
+
+/**
+ * @index ixCreditRequest_LockStatus Index for lock status filtering
+ * @type Search
+ */
+CREATE NONCLUSTERED INDEX [ixCreditRequest_LockStatus]
+ON [functional].[creditRequest]([lockStatus])
+WHERE [lockStatus] = 0;
 GO

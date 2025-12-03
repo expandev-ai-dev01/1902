@@ -101,6 +101,9 @@ export interface CreditRequestEntity {
     name: string;
     uploadDate: string;
   }>;
+  lockStatus?: boolean;
+  lockedBy?: number;
+  lockTimestamp?: string;
 }
 
 /**
@@ -162,4 +165,42 @@ export interface CreditRequestListResponse {
 export interface CreditRequestStats {
   total: number;
   byStatus: Record<RequestStatus, number>;
+}
+
+/**
+ * @interface AnalysisQueueItem
+ * @description Extended credit request entity for analysis queue
+ */
+export interface AnalysisQueueItem extends CreditRequestEntity {
+  clientName: string;
+  clientCpf: string;
+  waitTime: number;
+  priorityScore: number;
+  slaIndicator: string;
+}
+
+/**
+ * @interface AnalysisQueueFilters
+ * @description Filters for analysis queue
+ */
+export interface AnalysisQueueFilters {
+  startDate?: string;
+  endDate?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  searchTerm?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+/**
+ * @interface AnalysisQueueResponse
+ * @description Response for paginated analysis queue
+ */
+export interface AnalysisQueueResponse {
+  data: AnalysisQueueItem[];
+  total: number;
+  filteredTotal: number;
+  page: number;
+  pageSize: number;
 }

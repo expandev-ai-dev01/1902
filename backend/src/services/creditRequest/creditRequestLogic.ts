@@ -6,6 +6,7 @@
  * @module services/creditRequest/creditRequestLogic
  */
 
+import { getClientById } from '@/services/client';
 import {
   CreditRequestCreateRequest,
   CreditRequestCreateResponse,
@@ -18,6 +19,9 @@ import {
   CreditRequestListFilters,
   CreditRequestListResponse,
   CreditRequestStats,
+  AnalysisQueueFilters,
+  AnalysisQueueResponse,
+  AnalysisQueueItem,
 } from './creditRequestTypes';
 
 /**
@@ -76,6 +80,27 @@ function validateSubcategory(category: PurposeCategory, subcategory: string): bo
   };
 
   return validSubcategories[category]?.includes(subcategory) || false;
+}
+
+/**
+ * @summary
+ * Calculate SLA indicator color based on wait time
+ */
+function calculateSLA(waitTimeMinutes: number): string {
+  if (waitTimeMinutes <= 30) return 'Green';
+  if (waitTimeMinutes <= 42) return 'Yellow';
+  if (waitTimeMinutes <= 51) return 'Orange';
+  if (waitTimeMinutes <= 60) return 'Red';
+  return 'Black';
+}
+
+/**
+ * @summary
+ * Calculate priority score based on wait time and amount
+ */
+function calculatePriority(waitTimeMinutes: number, amount: number): number {
+  if (waitTimeMinutes < 30) return amount;
+  return 1000000;
 }
 
 /**
@@ -139,6 +164,9 @@ export async function creditRequestCreate(
     requestDate: new Date().toISOString(),
     status: RequestStatus.EmAnalise,
     documents: [],
+    lockStatus: false,
+    lockedBy: undefined,
+    lockTimestamp: undefined,
   };
 
   creditRequests.push(creditRequest);
@@ -298,4 +326,125 @@ export async function creditRequestCancel(
 
   request.status = RequestStatus.Cancelado;
   return true;
+}
+
+/**
+ * @summary
+ * Retrieves the analysis queue with priority sorting and filtering
+ *
+ * @function getAnalysisQueue
+ * @module services/creditRequest/creditRequestLogic
+ *
+ * @param {AnalysisQueueFilters} filters - Filter parameters
+ * @param {number} analystId - ID of the analyst requesting the queue
+ *
+ * @returns {Promise<AnalysisQueueResponse>} Paginated analysis queue
+ */
+export async function getAnalysisQueue(
+  filters: AnalysisQueueFilters,
+  analystId: number
+): Promise<AnalysisQueueResponse> {
+  // 1. Filter by status 'Em Análise' and not locked by others
+  let queue = creditRequests.filter((req) => {
+    if (req.status !== RequestStatus.EmAnalise) return false;
+    if (req.lockStatus && req.lockedBy !== analystId) return false;
+    return true;
+  });
+
+  // 2. Apply Advanced Filters
+  if (filters.startDate) {
+    const start = new Date(filters.startDate);
+    queue = queue.filter((req) => new Date(req.requestDate) >= start);
+  }
+  if (filters.endDate) {
+    const end = new Date(filters.endDate);
+    end.setHours(23, 59, 59, 999);
+    queue = queue.filter((req) => new Date(req.requestDate) <= end);
+  }
+  if (filters.minAmount) {
+    queue = queue.filter((req) => req.creditAmount >= filters.minAmount!);
+  }
+  if (filters.maxAmount) {
+    queue = queue.filter((req) => req.creditAmount <= filters.maxAmount!);
+  }
+  if (filters.searchTerm) {
+    const term = filters.searchTerm.toLowerCase();
+    queue = queue.filter((req) => {
+      const client = getClientById(req.idClient);
+      const cpf = client?.cpf || '';
+      return req.requestNumber.toLowerCase().includes(term) || cpf.includes(term);
+    });
+  }
+
+  // 3. Calculate Priority and SLA for sorting
+  const now = new Date();
+  const enrichedQueue: AnalysisQueueItem[] = queue.map((req) => {
+    const requestDate = new Date(req.requestDate);
+    const waitTime = Math.floor((now.getTime() - requestDate.getTime()) / 60000);
+    const priorityScore = calculatePriority(waitTime, req.creditAmount);
+    const slaIndicator = calculateSLA(waitTime);
+    const client = getClientById(req.idClient);
+
+    return {
+      ...req,
+      waitTime,
+      priorityScore,
+      slaIndicator,
+      clientName: client?.fullName || 'Unknown',
+      clientCpf: client?.cpf || 'Unknown',
+    };
+  });
+
+  // 4. Sort by Priority (Desc) then Date (Asc)
+  enrichedQueue.sort((a, b) => {
+    if (b.priorityScore !== a.priorityScore) {
+      return b.priorityScore - a.priorityScore;
+    }
+    return new Date(a.requestDate).getTime() - new Date(b.requestDate).getTime();
+  });
+
+  // 5. Pagination
+  const total = creditRequests.filter((req) => req.status === RequestStatus.EmAnalise).length;
+  const filteredTotal = enrichedQueue.length;
+  const page = filters.page || 1;
+  const pageSize = filters.pageSize || 10;
+  const start = (page - 1) * pageSize;
+  const paginatedData = enrichedQueue.slice(start, start + pageSize);
+
+  return {
+    data: paginatedData,
+    total,
+    filteredTotal,
+    page,
+    pageSize,
+  };
+}
+
+/**
+ * @summary
+ * Locks a credit request for analysis
+ *
+ * @function lockCreditRequest
+ * @module services/creditRequest/creditRequestLogic
+ *
+ * @param {number} idCreditRequest - Request identifier
+ * @param {number} analystId - Analyst identifier
+ *
+ * @returns {Promise<void>}
+ * @throws {Error} If request not found or already locked by another analyst
+ */
+export async function lockCreditRequest(idCreditRequest: number, analystId: number): Promise<void> {
+  const request = creditRequests.find((req) => req.idCreditRequest === idCreditRequest);
+
+  if (!request) {
+    throw new Error('requestNotFound');
+  }
+
+  if (request.lockStatus && request.lockedBy !== analystId) {
+    throw new Error('proposalAlreadyLocked');
+  }
+
+  request.lockStatus = true;
+  request.lockedBy = analystId;
+  request.lockTimestamp = new Date().toISOString();
 }
